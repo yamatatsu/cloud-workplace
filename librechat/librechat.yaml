@@ -1,0 +1,40 @@
+version: "1.3.5"
+cache: true
+
+interface:
+  modelSelect: true
+  webSearch: true
+
+modelSpecs:
+  list:
+    - name: "fireworks-kimi"
+      label: "Kimi (Fireworks)"
+      webSearch: true
+      preset:
+        endpoint: "Fireworks"
+        model: "accounts/fireworks/routers/kimi-k3-fast"
+
+endpoints:
+  custom:
+    - name: "Fireworks"
+      apiKey: "${FIREWORKS_API_KEY}"
+      baseURL: "https://api.fireworks.ai/inference/v1"
+      models:
+        default:
+          - "accounts/fireworks/routers/kimi-k3-fast"
+        fetch: true
+      titleConvo: true
+      titleModel: "accounts/fireworks/routers/kimi-k3-fast"
+      summarize: false
+      modelDisplayLabel: "Fireworks"
+      dropParams:
+        - "user"
+
+webSearch:
+  searchProvider: "tavily"
+  scraperProvider: "tavily"
+  tavilyApiKey: "${TAVILY_API_KEY}"
+  tavilySearchOptions:
+    searchDepth: basic
+    maxResults: 5
+    topic: general

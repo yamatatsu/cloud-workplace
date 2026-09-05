@@ -20,15 +20,15 @@ macbook を閉じていても、クラウド上の OpenCode がセッション�
 
 ## 利用技術
 
-| 役割 | 技術 |
-| --- | --- |
-| モデル API | Fireworks API |
-| 検索 API | Tavily API |
-| モデル・ルーティング | Switchyard（OpenCode 専用） |
-| チャットサービス | LibreChat（Fireworks へ直結） |
-| コーディングハーネス | OpenCode |
-| セッション管理 | Herdr（tmux 代替・agent-aware） |
-| 閉域ネットワーク | Tailscale |
+| 役割                 | 技術                            |
+| -------------------- | ------------------------------- |
+| モデル API           | Fireworks API                   |
+| 検索 API             | Tavily API                      |
+| モデル・ルーティング | Switchyard（OpenCode 専用）     |
+| チャットサービス     | LibreChat（Fireworks へ直結）   |
+| コーディングハーネス | OpenCode                        |
+| セッション管理       | Herdr（tmux 代替・agent-aware） |
+| 閉域ネットワーク     | Tailscale                       |
 
 ## アーキテクチャ
 
@@ -42,8 +42,8 @@ macbook を閉じていても、クラウド上の OpenCode がセッション�
                    │                            │
                    │  herdr ── OpenCode ──→ Switchyard ──→ Fireworks
                    │                                            └──→ Tavily
-                   │  docker ─ LibreChat ──→ Fireworks
-                   │            └ Mongo / Redis
+                    │  docker ─ LibreChat ──→ Fireworks
+                    │            └ MongoDB
                    └────────────────────────────┘
                      ↑ コードの真実の源は git リモート
 ```
@@ -53,7 +53,7 @@ macbook を閉じていても、クラウド上の OpenCode がセッション�
 - **OpenCode の運用**: Herdr でセッションを常駐させ、Tailscale 経由の SSH（`herdr --remote`）で再接続する方式。人は都度プロンプトを投げる（自律エージェント的な継続はスコープ外）。
 - **コードの真実の源**: git リモート（GitHub 等）を中心に、macbook / VPS 双方が clone & push する。
 - **LibreChat のモデル接続**: Fireworks へ直結。Switchyard は OpenCode 専用とし、ルーティングを混在させない。
-- **VPS リソース**: メモリ 2GB 以上。LibreChat + MongoDB(+Redis) の Docker 構成を前提。
+- **VPS リソース**: メモリ 2GB 以上。LibreChat + MongoDB の Docker 構成を前提（最小構成。ADR 0009）。
 
 ## セキュリティ方針
 
@@ -70,11 +70,26 @@ macbook を閉じていても、クラウド上の OpenCode がセッション�
 - `FIREWORKS_API_KEY`
 - `SWITCHYARD_*`（Switchyard 用の設定/キー）
 - `TAVILY_API_KEY`
-- LibreChat の JWT 秘密鍵 (`CREDS_KEY` / `CREDS_IV` 等)
+- LibreChat の認証シークレット (`JWT_SECRET` / `CREDS_KEY` / `CREDS_IV`)
 
 ## HTTPS 接続
 
 `tailscale serve` で `*.ts.net` の自動 HTTPS 証明書を使用して LibreChat を提供する。外部公開（Funnel / パブリック DNS）は行わない。
+
+## デプロイ手順（VPS）
+
+VPS 側の前提として、以下を完了しておく。
+
+- `setup-vps/init.sh`（zsh / Docker などの導入）
+- [docs/spec/vps-security.md](docs/spec/vps-security.md)（Tailscale / UFW などの閉域化）
+
+LibreChat の詳細な構成・手順は [docs/spec/librechat.md](docs/spec/librechat.md) に定める。概要は以下の通り。
+
+1. リポジトリを VPS に clone する（コードの真実の源は git リモート）。
+2. `.env.example` を `.env` にコピーし、シークレット（`JWT_SECRET` / `CREDS_KEY` / `CREDS_IV` / `FIREWORKS_API_KEY`）を生成・設定する。
+3. `docker compose up -d` で LibreChat + MongoDB を起動する。
+4. ブラウザから最初のアカウントを登録（これが管理者）し、`ALLOW_REGISTRATION=false` に変更して再起動する。
+5. `tailscale serve` で `*.ts.net` の HTTPS を付与して提供する。
 
 ## 設計判断の記録
 

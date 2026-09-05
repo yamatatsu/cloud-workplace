@@ -1,0 +1,29 @@
+services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat:v0.8.7
+    container_name: librechat
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "127.0.0.1:3080:3080"
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./librechat/librechat.yaml:/app/librechat.yaml:ro
+      - librechat-data:/app/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3080
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+
+  mongodb:
+    image: mongo:8.0.20
+    container_name: chat-mongodb
+    restart: always
+    volumes:
+      - mongodb-data:/data/db
+    command: mongod --noauth
+
+volumes:
+  librechat-data:
+  mongodb-data:
