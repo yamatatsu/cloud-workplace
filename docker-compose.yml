@@ -6,7 +6,7 @@ services:
     depends_on:
       - mongodb
     ports:
-      - "127.0.0.1:3080:3080"
+      - "3080:3080"
     volumes:
       - ./.env:/app/.env:ro
       - ./librechat/librechat.yaml:/app/librechat.yaml:ro
