@@ -7,12 +7,12 @@ interface:
 
 modelSpecs:
   list:
-    - name: "fireworks-kimi"
-      label: "Kimi (Fireworks)"
+    - name: "fireworks-firerouter"
+      label: "FireRouter"
       webSearch: true
       preset:
         endpoint: "Fireworks"
-        model: "accounts/fireworks/routers/kimi-k3-fast"
+        model: "firerouter/kimi-k3/glm-5p3/deepseek-v4-flash-0731"
 
 endpoints:
   custom:
@@ -21,11 +21,12 @@ endpoints:
       baseURL: "https://api.fireworks.ai/inference/v1"
       models:
         default:
-          - "accounts/fireworks/routers/kimi-k3-fast"
+          - "accounts/fireworks/routers/kimi-k3"
         fetch: true
       titleConvo: true
-      titleModel: "accounts/fireworks/routers/kimi-k3-fast"
-      summarize: false
+      titleModel: "accounts/fireworks/models/deepseek-v4-flash-0731"
+      summarize: true
+      summaryModel: "accounts/fireworks/models/deepseek-v4-flash-0731"
       modelDisplayLabel: "Fireworks"
       dropParams:
         - "user"
