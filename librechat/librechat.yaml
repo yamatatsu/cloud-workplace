@@ -13,6 +13,7 @@ modelSpecs:
       preset:
         endpoint: "Fireworks"
         model: "firerouter/kimi-k3/glm-5p3/deepseek-v4-flash-0731"
+        maxContextTokens: 1000000
 
 endpoints:
   custom:
