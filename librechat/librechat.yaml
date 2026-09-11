@@ -12,7 +12,7 @@ modelSpecs:
       webSearch: true
       preset:
         endpoint: "Fireworks"
-        model: "firerouter/kimi-k3/glm-5p3/deepseek-v4-flash-0731"
+        model: "firerouter/kimi-k3/deepseek-v4p1-flash"
         maxContextTokens: 1000000
 
 endpoints:
@@ -22,15 +22,15 @@ endpoints:
       baseURL: "https://api.fireworks.ai/inference/v1"
       headers:
         # x-routing-preference: 1(品質最優先)〜5(コスト最優先)、省略時は3(balanced)
-        x-routing-preference: "3"
+        x-routing-preference: "4"
       models:
         default:
           - "accounts/fireworks/routers/kimi-k3"
         fetch: true
       titleConvo: true
-      titleModel: "accounts/fireworks/models/deepseek-v4-flash-0731"
+      titleModel: "accounts/fireworks/models/deepseek-v4p1-flash"
       summarize: true
-      summaryModel: "accounts/fireworks/models/deepseek-v4-flash-0731"
+      summaryModel: "accounts/fireworks/models/deepseek-v4p1-flash"
       modelDisplayLabel: "Fireworks"
       dropParams:
         - "user"
