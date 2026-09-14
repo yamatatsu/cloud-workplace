@@ -8,7 +8,7 @@ interface:
 modelSpecs:
   list:
     - name: "fireworks-firerouter"
-      label: "FireRouter"
+      label: "FireRouter2"
       webSearch: true
       preset:
         endpoint: "Fireworks"
@@ -25,7 +25,7 @@ endpoints:
         x-routing-preference: "4"
       models:
         default:
-          - "accounts/fireworks/routers/kimi-k3"
+          - "FireRouter2"
         fetch: true
       titleConvo: true
       titleModel: "accounts/fireworks/models/deepseek-v4p1-flash"
