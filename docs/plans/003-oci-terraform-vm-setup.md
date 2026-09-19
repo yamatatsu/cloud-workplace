@@ -129,11 +129,11 @@ terraform destroy
 
 ## 確認チェックリスト
 
-- [ ] インスタンスが RUNNING
-- [ ] ブートストラップ SSH でログインできる（Phase 5 前のみ）
+- [x] インスタンスが RUNNING
+- [x] ブートストラップ SSH でログインできる（Phase 5 前のみ）
 - [ ] シリアルコンソール接続文字列で接続できる
-- [ ] 最終的にセキュリティリストの ingress が空
-- [ ] `tailscale ssh yamatatsu@<host>` で接続できる
+- [x] 最終的にセキュリティリストの ingress が空
+- [x] `tailscale ssh yamatatsu@<host>` で接続できる
 
 ## 参考（公式ドキュメント）
 

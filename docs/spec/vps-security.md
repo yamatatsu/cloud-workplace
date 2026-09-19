@@ -160,9 +160,9 @@ Docker は iptables を直接操作し UFW をバイパスするため、追加�
 
 ## 検証チェックリスト
 
-- [ ] `tailscale ssh yamatatsu@<host>` で接続できる
-- [ ] 標準 `ssh yamatatsu@<host>`（ProxyCommand 設定後）でも接続できる
-- [ ] OCI セキュリティリストの ingress ルールがゼロ
+- [x] `tailscale ssh yamatatsu@<host>` で接続できる
+- [x] 標準 `ssh yamatatsu@<host>`（ProxyCommand 設定後）でも接続できる
+- [x] OCI セキュリティリストの ingress ルールがゼロ
 - [ ] 公開 IP にポートが露出していない（外部スキャンで確認）
 - [ ] root でのリモートログインができない
 - [ ] パスワード認証が使えない（tailnet ACL のみ。シリアルコンソールのローカルログインを除く）
