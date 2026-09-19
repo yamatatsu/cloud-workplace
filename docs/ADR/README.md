@@ -14,3 +14,5 @@
 | 0007 | [tailscale-ssh](0007-tailscale-ssh.md) | SSH アクセスは Tailscale SSH を採用 | 決定 |
 | 0008 | [docker-exposure](0008-docker-exposure.md) | Docker コンテナの公開面を禁止 | 決定 |
 | 0009 | [librechat-minimal-deps](0009-librechat-minimal-deps.md) | LibreChat は最小構成（MongoDB のみ）で展開 | 決定 |
+| 0010 | [oracle-cloud-migration](0010-oracle-cloud-migration.md) | VPS を Oracle Cloud（Always Free / Ampere A1）に移行 | 決定 |
+| 0011 | [terraform-oci-resources](0011-terraform-oci-resources.md) | OCI リソースの管理に Terraform を採用 | 決定 |
