@@ -57,24 +57,14 @@ resource "oci_core_default_route_table" "main" {
 }
 
 ### デフォルトセキュリティリスト
-### ブートストラップ中は SSH(22) のみ許可。Tailscale 検証後に ingress を空にして再 apply（Phase 5）。
+### Phase 5 完了: Tailscale SSH 経由の運用に移行したため、ingress はゼロ。
+### ルールは全体置換のため、このブロックに書かない限り ingress は存在しない。
 resource "oci_core_default_security_list" "main" {
   manage_default_resource_id = oci_core_vcn.main.default_security_list_id
   compartment_id             = local.compartment_id
   display_name               = "default-security-list"
 
-  # ブートストラップ用。可能なら var で自 IP /32 に絞る
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = "0.0.0.0/0"
-    source_type = "CIDR_BLOCK"
-    tcp_options {
-      min = 22
-      max = 22
-    }
-  }
-
-  # Phase 5 完了後は上記 ingress_security_rules ブロックを削除して再 apply する
+  # ingress なし（Tailscale のみ）
 
   egress_security_rules {
     protocol         = "all"
