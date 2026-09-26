@@ -12,7 +12,7 @@ modelSpecs:
       webSearch: true
       preset:
         endpoint: "Fireworks"
-        model: "firerouter/kimi-k3/deepseek-v4p1-flash"
+        model: "firerouter/kimi-k3/deepseek-v4p1-flash/deepseek-v4p1-flash"
         maxContextTokens: 1000000
 
 endpoints:
@@ -29,6 +29,9 @@ endpoints:
         fetch: true
       titleConvo: true
       titleModel: "accounts/fireworks/models/deepseek-v4p1-flash"
+      titlePrompt: |
+        会話の内容に基づいて、簡潔なタイトルを日本語で生成してください。句読点や引用符は使わないでください。タイトルのみを出力し、「タイトル」という言葉や言語名は含めないでください。
+        {convo}
       summarize: true
       summaryModel: "accounts/fireworks/models/deepseek-v4p1-flash"
       modelDisplayLabel: "Fireworks"
