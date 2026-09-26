@@ -15,3 +15,21 @@ sudo systemctl enable docker
 sudo systemctl start docker
 docker --version
 docker compose version
+
+# oracle instanceのubuntuイメージにはviが入ってなかった
+sudo apt update
+sudo apt install vim
+
+# customize zsh
+vi ~/.zshrc
+# alias ll='ls -al'
+# alias g=git
+# alias d=docker
+# alias dc='docker compose'
+
+# crone github repository
+mkdir ~/Projects
+cd ~/Projects
+git clone https://github.com/yamatatsu/cloud-workplace.git
+cp .env.example .env # and write your environment variables
+docker compose up -d
