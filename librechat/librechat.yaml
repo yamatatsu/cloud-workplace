@@ -51,3 +51,15 @@ webSearch:
     searchDepth: basic
     maxResults: 5
     topic: general
+
+mcpServers:
+  mhrise:
+    type: streamable-http
+    url: http://mhrise-mcp:8000/mcp
+    requiresOAuth: false
+    timeout: 60000
+    serverInstructions: true
+
+mcpSettings:
+  allowedAddresses:
+    - "mhrise-mcp:8000"

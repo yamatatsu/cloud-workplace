@@ -16,3 +16,4 @@
 | 0009 | [librechat-minimal-deps](0009-librechat-minimal-deps.md) | LibreChat は最小構成（MongoDB のみ）で展開 | 決定 |
 | 0010 | [oracle-cloud-migration](0010-oracle-cloud-migration.md) | VPS を Oracle Cloud（Always Free / Ampere A1）に移行 | 決定 |
 | 0011 | [terraform-oci-resources](0011-terraform-oci-resources.md) | OCI リソースの管理に Terraform を採用 | 決定 |
+| 0012 | [mhrise-mcp-server](0012-mhrise-mcp-server.md) | モンハンライズのデータ検索を DuckDB + MCP サーバーで提供 | 決定 |

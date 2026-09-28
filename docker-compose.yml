@@ -5,6 +5,7 @@ services:
     restart: always
     depends_on:
       - mongodb
+      - mhrise-mcp
     ports:
       - "3080:3080"
     volumes:
@@ -15,6 +16,13 @@ services:
       - HOST=0.0.0.0
       - PORT=3080
       - MONGO_URI=mongodb://mongodb:27017/LibreChat
+
+  mhrise-mcp:
+    build: ./librechat/mhrise/mcp
+    container_name: mhrise-mcp
+    restart: always
+    volumes:
+      - ./librechat/mhrise/data:/data:ro
 
   mongodb:
     image: mongo:8.0.20
