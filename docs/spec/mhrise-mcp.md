@@ -13,6 +13,11 @@ LibreChat からモンスターハンターライズ（サンブレイク含む�
 | 展開             | docker-compose の `mhrise-mcp` サービス（ポートはホスト非公開） |
 | LibreChat 側設定 | `mcpServers` + `mcpSettings.allowedAddresses`                   |
 
+## クレジット・ライセンス
+
+- データは [MHRice](https://mhrise.mhrice.info/)（[wwylele/mhrice](https://github.com/wwylele/mhrice)、Apache-2.0）の公開 JSON（`mhrice.json`）を利用している。
+- ゲームデータの著作権は株式会社カプコンに帰属する。`data/` のコミット物は private リポジトリでの個人利用を前提とし、public 化する場合は取り扱いを再検討すること（残課題参照）。
+
 ## ファイル構成
 
 ```
@@ -52,7 +57,14 @@ python3 librechat/mhrise/etl/build_data.py
    - `{"param"/"entries"/"data_list": [...]}` はリスト要素を 1 行ずつ展開
    - サブグループの入れ物（例: `great_sword = {base_data, name, tree, ...}`）は `<キー>__<サブキー>` に再帰分割（例: `great_sword__base_data`）
    - 全 441 テーブル
-2. MCP サーバーとして `0.0.0.0:8000`（streamable-http、パス `/mcp`）で待受
+2. クエリしやすさのための派生ビューを作成する（生テーブルも残すのでロスレス性は維持）
+   - `v_<武器種>`（14 種）: `base_data` に武器名を結合し、よく使う列（`name_ja`, `name_en`, `is_test`, `is_mr`, `weapon_id`, `sort_id`, `rare`, `atk`, `affinity`, `def_bonus`, `slots`, `hyakuryu_skill_ids`, `element_type`, `element_val`）を平坦化したもの
+     - 名称との結合は、名称テーブルの `name` 列（`W_<武器種>_<id>_Name` 形式）に埋め込まれた武器 id と `base_data` の id struct のキー結合。**行の並びは武器種によって base_data と一致しないため、位置 JOIN は使わない**
+     - `v_horn` はさらに `melodies_ja` / `melodies_en`（旋律名の配列）を持つ
+   - `v_horn_melody`: 旋律マスタ（`id`, `name_ja`, `name_en`。無印・MR 統合）
+   - `v_hyakuryu_skill`: 百竜スキルに名称を結合したもの
+3. 名称結合の整合性チェック（全武器ビューで名称未結合行・行数異常があれば警告ログ）
+4. MCP サーバーとして `0.0.0.0:8000`（streamable-http、パス `/mcp`）で待受
 
 ### 公開ツール
 
@@ -64,11 +76,13 @@ python3 librechat/mhrise/etl/build_data.py
 
 ### データ構造上の注意（MCP instructions にも記載）
 
+- **武器を調べる場合はまず `v_<武器種>` ビューを使う**（名称結合・列平坦化済み。上記「起動時の処理」参照）。生テーブルは深入り用
 - 名称・説明文のテーブル（`*__name` / `*_msg` 系）は `content` カラムが 32 言語の配列。DuckDB は 1-indexed で `content[1]` = 日本語、`content[2]` = 英語
-- 武器テーブル（`great_sword__base_data` 等）はネストした struct 構造。struct のフィールドアクセスはブラケット記法（例: `base['base']['base']['atk']`）を使う。深さは武器種で異なるため `describe_table` で確認してからクエリすること
-- 武器名は `<武器種>__name`（無印分）と `<武器種>__name_mr`（MR 分）に分割されており、`base_data` は無印→MR の順に並ぶ。`name` の後ろに `name_mr` を連結すると行の並びが対応する（`row_number()` で JOIN）
+- 武器テーブル（`great_sword__base_data` 等）はネストした struct 構造。struct のフィールドアクセスはブラケット記法（例: `base['base']['base']['atk']`）を使う。深さは武器種で異なる（近接武器は `base.base.base.atk`、弓・ガンナーは 1 段浅い）ため `describe_table` で確認してからクエリすること
+- 武器名は `<武器種>__name`（無印分）と `<武器種>__name_mr`（MR 分）に分割されている。`name` 列が `W_<武器種>_<id>_Name` 形式（一部 `_Name_MR`）で武器 id を含み、`base_data` の id struct とキー結合できる（`v_*` ビューで結合済み）。行の並びの一致は武器種によって保証されない
+- `base_data` に対応しない名称行（未使用武器枠。例: horn の氷琴アイスフィール等）や、同 id の重複名称（例: gun_lance の `里守用堅守銃槍`）が存在する
 - サンブレイク（MR）追加分は `*_mr` サフィックスのテーブルに入っている
-- 「クリア後テスト用」「TU3テスト用」などのテスト用データも含まれる（回答時は除外を指示済み）
+- 「クリア後テスト用」「TU3テスト用」などのテスト用データも含まれる（`v_*` ビューでは `is_test` フラグ。回答時は除外を指示済み）
 
 ## docker-compose への追加
 

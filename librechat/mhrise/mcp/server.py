@@ -26,28 +26,34 @@ INSTRUCTIONS = """\
 モンスターハンターライズ（サンブレイク含む）のゲームデータを DuckDB SQL で検索できる。
 
 使い方:
-1. list_tables でテーブル一覧を確認する
-2. describe_table で対象テーブルの構造を確認してから query で SQL を実行する
+1. 武器を調べるときは、まず v_<武器種> ビュー（例: v_horn）を使うこと。
+   武器名（name_ja / name_en）との結合済みで、atk（攻撃力）, affinity（会心率）,
+   def_bonus, slots（スロット）, element_type / element_val（属性）, rare（レア度）,
+   sort_id, weapon_id, hyakuryu_skill_ids などが平坦化されている。
+   - is_test = true はテスト用データ。ユーザーへの回答からは除外すること
+   - is_mr = true はサンブレイク（MR）追加分
+   武器種: great_sword, long_sword, short_sword, dual_blades, hammer, horn, lance,
+   gun_lance, slash_axe, charge_axe, insect_glaive, bow, light_bowgun, heavy_bowgun
+2. 狩猟笛の旋律は v_horn.melodies_ja（日本語名の配列）に入っている。
+   旋律マスタは v_horn_melody（id, name_ja, name_en）。
+   例: SELECT name_ja, melodies_ja FROM v_horn
+       WHERE list_contains(melodies_ja, 'スタミナ消費軽減')
+3. 百竜スキルは v_hyakuryu_skill（id, name_ja, name_en 結合済み）を使う。
+4. 上記で足りない場合のみ生テーブルを調べる。list_tables / describe_table で
+   構造を確認してから query で SQL を実行する
    （テーブルはネストした struct を含むため、構造確認してから書くこと）
 
-データ構造上の注意:
-- 武器テーブルは <武器種>__base_data（例: great_sword__base_data）に入っている。
-  武器種: great_sword, long_sword, short_sword, dual_blades, hammer, horn, lance,
-  gun_lance, slash_axe, charge_axe, insect_glaive, bow, light_bowgun, heavy_bowgun
-- 攻撃力などはネストした struct 内にある。struct のフィールドアクセスは
-  ドットではなくブラケット記法を使うこと（大剣の例）:
-  base['base']['base']['atk']（攻撃力）, base['base']['main_element_type']（属性）
-  深さは武器種で異なる場合があるため、必ず describe_table で確認すること
-- 武器名は <武器種>__name（無印分）と <武器種>__name_mr（MR 分）に分かれており、
-  content カラムが 32 言語の配列。DuckDB は 1-indexed で content[1]=日本語, content[2]=英語。
-  base_data は無印分→MR 分の順に並んでおり、name の後ろに name_mr を連結すると
-  行の並びが対応する。JOIN 例:
-    WITH w AS (SELECT row_number() OVER () AS i, * FROM great_sword__base_data),
-         n AS (SELECT row_number() OVER () AS i, content FROM great_sword__name
-               UNION ALL
-               SELECT row_number() OVER () + (SELECT COUNT(*) FROM great_sword__name), content
-               FROM great_sword__name_mr)
-    SELECT n.content[1] AS name, w.base['base']['base']['atk'] FROM w JOIN n USING (i)
+データ構造上の注意（生テーブルを直接調べる場合）:
+- 武器テーブルは <武器種>__base_data に入っている。
+  攻撃力などはネストした struct 内にあり、フィールドアクセスはドットではなく
+  ブラケット記法を使う（近接武器の例: base['base']['base']['atk']、弓・ガンナーは
+  1 段浅く base['base']['atk']）
+- 名称テーブル <武器種>__name（無印分）と <武器種>__name_mr（MR 分）の content は
+  32 言語の配列。DuckDB は 1-indexed で content[1]=日本語, content[2]=英語
+- 名称と base_data は v_* ビューで結合済み。生テーブルを直接結合する場合は、
+  名称テーブルの name 列（W_<武器種>_<id>_Name 形式）に含まれる武器 id と
+  base_data の id struct でキー結合すること（行の並びは武器種によって一致しない）。
+  base_data に対応しない名称行（未使用武器枠）やテスト用データが存在する点に注意
 - 派生ツリーは <武器種>__tree、生産素材は <武器種>__product に入っている
 - サンブレイク（MR）追加分は *_mr サフィックスのテーブルに入っている
 - 属性値などのマイナス値は「未設定」を意味する場合がある
@@ -56,6 +62,25 @@ INSTRUCTIONS = """\
 """
 
 ALLOWED_STATEMENT = re.compile(r"^\s*(select|with|explain|describe|show)\b", re.IGNORECASE)
+
+# 武器種ごとの設定: (武器 id struct のキー, 近接武器かどうか, 属性を持つか)
+# 近接武器は struct が 1 段深い（base.base.base.atk）。弓・ガンナーは浅い（base.base.atk）
+WEAPON_CONFIG = {
+    "great_sword": ("GreatSword", True, True),
+    "long_sword": ("LongSword", True, True),
+    "short_sword": ("ShortSword", True, True),
+    "dual_blades": ("DualBlades", True, True),
+    "hammer": ("Hammer", True, True),
+    "horn": ("Horn", True, True),
+    "lance": ("Lance", True, True),
+    "gun_lance": ("GunLance", True, True),
+    "slash_axe": ("SlashAxe", True, True),
+    "charge_axe": ("ChargeAxe", True, True),
+    "insect_glaive": ("InsectGlaive", True, True),
+    "bow": ("Bow", False, True),
+    "light_bowgun": ("LightBowgun", False, False),
+    "heavy_bowgun": ("HeavyBowgun", False, False),
+}
 
 mcp = FastMCP("mhrise", instructions=INSTRUCTIONS)
 con = duckdb.connect(":memory:")
@@ -120,6 +145,127 @@ def load_data() -> None:
     print(f"loaded {len(tables)} tables from {len(files)} files", flush=True)
 
 
+def create_views() -> None:
+    """生テーブルの上に、名称結合済み・よく使う列を平坦化した v_* ビューを作る。
+
+    名称テーブルの name 列（W_<武器種>_<id>_Name 形式）に武器 id が埋め込まれており、
+    base_data の id struct とキー結合できる。テスト用データは除外せず is_test フラグで示す。
+    """
+    con.execute(
+        """
+        CREATE VIEW v_horn_melody AS
+        SELECT id, content[1] AS name_ja, content[2] AS name_en
+        FROM (
+            SELECT TRY_CAST(regexp_extract(name, '_(\\d+)_Name$', 1) AS INTEGER) AS id, content
+            FROM horn_melody
+            UNION ALL
+            SELECT TRY_CAST(regexp_extract(name, '_(\\d+)_Name$', 1) AS INTEGER), content
+            FROM horn_melody_mr
+        )
+        WHERE id IS NOT NULL
+        """
+    )
+    con.execute(
+        """
+        CREATE VIEW v_hyakuryu_skill AS
+        SELECT h.id['Skill'] AS id, m.content[1] AS name_ja, m.content[2] AS name_en, h.*
+        FROM hyakuryu_skill h
+        LEFT JOIN (
+            SELECT TRY_CAST(regexp_extract(name, '_(\\d+)_Name$', 1) AS INTEGER) AS id, content
+            FROM hyakuryu_skill_name_msg
+        ) m ON m.id = h.id['Skill']
+        """
+    )
+    for wt, (id_key, deep, has_element) in WEAPON_CONFIG.items():
+        stats = "d.base['base']['base']" if deep else "d.base['base']"
+        ids = f"{stats}['base']"
+        elem = "d.base['base']" if deep else "d.base"
+        element_cols = (
+            f"{elem}['main_element_type'] AS element_type,\n"
+            f"                {elem}['main_element_val'] AS element_val"
+            if has_element
+            else "NULL AS element_type,\n                NULL AS element_val"
+        )
+        extra_cols = ""
+        extra_join = ""
+        if wt == "horn":
+            extra_cols = """,
+                   list_transform(d.horn_melody_type_list, x -> mm.mp_ja[x]) AS melodies_ja,
+                   list_transform(d.horn_melody_type_list, x -> mm.mp_en[x]) AS melodies_en"""
+            extra_join = """
+            CROSS JOIN (
+                SELECT map(list(id), list(name_ja)) AS mp_ja,
+                       map(list(id), list(name_en)) AS mp_en
+                FROM v_horn_melody
+            ) mm"""
+        # 名称テーブルの name 列は W_<武器種>_<id>_Name（一部 _Name_MR）形式で
+        # 武器 id を含む。base_data の id とキー結合できるため、行位置に依存しない
+        con.execute(
+            f"""
+            CREATE VIEW "v_{wt}" AS
+            WITH n AS (
+                SELECT * FROM (
+                    SELECT TRY_CAST(regexp_extract(name, '^W_\\w+_(\\d+)_Name(?:_MR)?$', 1)
+                                    AS INTEGER) AS wid,
+                           content[1] AS name_ja, content[2] AS name_en, false AS is_mr
+                    FROM "{wt}__name"
+                    UNION ALL
+                    SELECT TRY_CAST(regexp_extract(name, '^W_\\w+_(\\d+)_Name(?:_MR)?$', 1)
+                                    AS INTEGER),
+                           content[1], content[2], true
+                    FROM "{wt}__name_mr"
+                )
+                WHERE wid IS NOT NULL
+                -- 同名・同 id の重複エントリが稀に存在する（例: gun_lance の
+                -- 里守用堅守銃槍）。無印側を優先して 1 件に絞る
+                QUALIFY row_number() OVER (PARTITION BY wid ORDER BY is_mr) = 1
+            )
+            SELECT
+                n.name_ja,
+                n.name_en,
+                coalesce(n.name_ja LIKE '%テスト%', false) AS is_test,
+                n.is_mr,
+                {ids}['id']['{id_key}'] AS weapon_id,
+                {ids}['sort_id'] AS sort_id,
+                {ids}['rare_type'] AS rare,
+                {stats}['atk'] AS atk,
+                {stats}['critical_rate'] AS affinity,
+                {stats}['def_bonus'] AS def_bonus,
+                {stats}['slot_num_list'] AS slots,
+                list_transform({stats}['hyakuryu_skill_id_list'], s -> s['Skill'])
+                    AS hyakuryu_skill_ids,
+                {element_cols}{extra_cols},
+                d.*
+            FROM "{wt}__base_data" d
+            LEFT JOIN n ON n.wid = {ids}['id']['{id_key}']{extra_join}
+            """
+        )
+    print(f"created views: v_horn_melody, v_hyakuryu_skill, "
+          f"{', '.join(f'v_{w}' for w in WEAPON_CONFIG)}", flush=True)
+
+
+def check_weapon_alignment() -> None:
+    """v_<武器種> の名称結合率と行数を検証し、異常があれば警告を出す。"""
+    problems = []
+    for wt in WEAPON_CONFIG:
+        total, named, n_data = con.execute(
+            f"""
+            SELECT COUNT(*), COUNT(name_ja),
+                   (SELECT COUNT(*) FROM "{wt}__base_data")
+            FROM "v_{wt}"
+            """
+        ).fetchone()
+        if named != total:
+            problems.append(f"{wt}: {named}/{total} named")
+        if total != n_data:
+            problems.append(f"{wt}: 行数 {total} != base_data {n_data}（名称の重複結合？）")
+    if problems:
+        print("warning: 武器ビューの整合性異常: " + ", ".join(problems), flush=True)
+    else:
+        print(f"name join verified: all {len(WEAPON_CONFIG)} weapon views fully named",
+              flush=True)
+
+
 @mcp.tool
 def query(sql: str) -> str:
     """DuckDB SQL（SELECT 系のみ）を実行し、結果を JSON 文字列で返す。"""
@@ -168,4 +314,6 @@ def describe_table(table: str) -> str:
 
 if __name__ == "__main__":
     load_data()
+    create_views()
+    check_weapon_alignment()
     mcp.run(transport="http", host=HOST, port=PORT)
