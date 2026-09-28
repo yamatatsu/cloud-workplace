@@ -10,6 +10,9 @@ modelSpecs:
     - name: "fireworks-firerouter"
       label: "FireRouter2"
       webSearch: true
+      # このモデルスペック選択中は MHRise MCP を常に有効化する
+      mcpServers:
+        - "mhrise"
       preset:
         endpoint: "Fireworks"
         maxContextTokens: 1000000
