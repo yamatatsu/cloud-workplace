@@ -91,6 +91,11 @@ LibreChat の詳細な構成・手順は [docs/spec/librechat.md](docs/spec/libr
 4. ブラウザから最初のアカウントを登録（これが管理者）し、`ALLOW_REGISTRATION=false` に変更して再起動する。
 5. `tailscale serve` で `*.ts.net` の HTTPS を付与して提供する。
 
+## クレジット
+
+- モンスターハンターライズのデータは [MHRice](https://mhrise.mhrice.info/)（[wwylele/mhrice](https://github.com/wwylele/mhrice)、Apache-2.0）の公開 JSON を利用している。
+- ゲームデータの著作権は株式会社カプコンに帰属する。
+
 ## 設計判断の記録
 
 アーキテクチャ上の決定は [docs/ADR](docs/ADR/README.md) に記録している。
