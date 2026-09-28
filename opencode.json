@@ -6,6 +6,7 @@
       "cat *": "allow",
       "docker compose *": "allow",
       "echo *": "allow",
+      "find *": "allow",
       "git add *": "allow",
       "git commit *": "allow",
       "git diff *": "allow",
@@ -18,6 +19,7 @@
       "mise *": "allow",
       "tail *": "allow",
       "uv *": "allow",
+      "wc *": "allow",
       "which *": "allow"
     }
   }
