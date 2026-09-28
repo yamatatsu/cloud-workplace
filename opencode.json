@@ -1,0 +1,24 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "cat *": "allow",
+      "docker compose *": "allow",
+      "echo *": "allow",
+      "git add *": "allow",
+      "git commit *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "git status *": "allow",
+      "grep *": "allow",
+      "head *": "allow",
+      "ls *": "allow",
+      "networksetup *": "allow",
+      "mise *": "allow",
+      "tail *": "allow",
+      "uv *": "allow",
+      "which *": "allow"
+    }
+  }
+}
