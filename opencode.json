@@ -17,6 +17,7 @@
       "ls *": "allow",
       "networksetup *": "allow",
       "mise *": "allow",
+      "sleep *": "allow",
       "tail *": "allow",
       "uv *": "allow",
       "wc *": "allow",
