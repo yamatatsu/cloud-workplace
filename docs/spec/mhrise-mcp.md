@@ -82,7 +82,22 @@ python3 librechat/mhrise/etl/build_data.py
 - 武器名は `<武器種>__name`（無印分）と `<武器種>__name_mr`（MR 分）に分割されている。`name` 列が `W_<武器種>_<id>_Name` 形式（一部 `_Name_MR`）で武器 id を含み、`base_data` の id struct とキー結合できる（`v_*` ビューで結合済み）。行の並びの一致は武器種によって保証されない
 - `base_data` に対応しない名称行（未使用武器枠。例: horn の氷琴アイスフィール等）や、同 id の重複名称（例: gun_lance の `里守用堅守銃槍`）が存在する
 - サンブレイク（MR）追加分は `*_mr` サフィックスのテーブルに入っている
-- 「クリア後テスト用」「TU3テスト用」などのテスト用データも含まれる（`v_*` ビューでは `is_test` フラグ。回答時は除外を指示済み）
+- `v_*` ビューの `is_test` フラグは以下の 3 種をまとめて示す（回答からは除外を指示済み）
+  - 「○○テスト用」という名前のテスト用武器
+  - `#Rejected#` という名前（名称マスタがプレースホルダ）の未使用武器枠
+  - 攻撃力 0 の重ね着専用ダミー（ロストコード＝○○ / ぬいぐるみ○○シリーズ）
+
+### 実利用で得られたナレッジ（MCP instructions にも記載）
+
+- `v_*` の `slots` は `[スロ1, スロ2, スロ3, 百竜スロット]` のレベル 4 要素。装飾品スロットの比較は先頭 3 要素のみを見る
+- `affinity`（会心率）は負の値がありうる（マイナス会心）
+- `hyakuryu_skill_ids` は MR 武器にも存在する（固定百竜スキル）。`list_contains(hyakuryu_skill_ids, <id>)` で `v_hyakuryu_skill` と id 結合できる
+- 派生ツリー（`<武器種>__tree`）は `weapon_id` struct で `v_*` と結合可能。`next_weapon_index_list` / `prev_weapon_index` は tree テーブル自身の `index` 列を指す
+  - **DuckDB 1.4.1 の注意**: FROM 句で `UNNEST` と JOIN を組み合わせると内部エラー（`Attempted to dereference unique_ptr that is NULL`）になることがある。`list_contains((SELECT ...), t.index)` 形式で代替する
+- 武器名にモンスター名は含まれないため、モンスター名での武器検索は不可。素材名（`items_name_msg` / `items_name_msg_mr` の `content[1]`）をモンスターの和名（例: マガイマガド → 怨虎竜）で LIKE 検索し、`<武器種>__product` の `base['item']` 配列（`'{"Normal":<id>}'` 形式の JSON 文字列）と照合すると直接生産できる武器に限り逆引きできる
+- 狩猟笛の旋律の効果説明文は `horn_melody` / `horn_melody_mr` テーブルの `Horn_UniqueParam_NNN_Explain` 行にある。`_Name` 行と同じ NNN で結合すれば名称と効果をセットで取得できる
+- `v_hyakuryu_skill` は id 259〜293 の名称が NULL（MHRice 側に名称データが存在しない。結合ミスではない）
+- テーブルは 441 個あるため `SHOW TABLES` / `list_tables` は 200 行上限で打ち切られる。テーブル検索は `information_schema.tables` を LIKE 検索する
 
 ## docker-compose への追加
 

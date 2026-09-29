@@ -30,16 +30,40 @@ INSTRUCTIONS = """\
    武器名（name_ja / name_en）との結合済みで、atk（攻撃力）, affinity（会心率）,
    def_bonus, slots（スロット）, element_type / element_val（属性）, rare（レア度）,
    sort_id, weapon_id, hyakuryu_skill_ids などが平坦化されている。
-   - is_test = true はテスト用データ。ユーザーへの回答からは除外すること
+   - is_test = true は回答から除外すること。該当するのは「○○テスト用」という
+     名前のテスト用武器、#Rejected# という名前の未使用武器枠、攻撃力 0 の
+     重ね着専用ダミー（ロストコード＝○○ / ぬいぐるみ○○シリーズ）
    - is_mr = true はサンブレイク（MR）追加分
    武器種: great_sword, long_sword, short_sword, dual_blades, hammer, horn, lance,
    gun_lance, slash_axe, charge_axe, insect_glaive, bow, light_bowgun, heavy_bowgun
 2. 狩猟笛の旋律は v_horn.melodies_ja（日本語名の配列）に入っている。
    旋律マスタは v_horn_melody（id, name_ja, name_en）。
    例: SELECT name_ja, melodies_ja FROM v_horn
-       WHERE list_contains(melodies_ja, 'スタミナ消費軽減')
+       WHERE list_contains(melodies_ja, 'スタミナ消費軽減') AND NOT is_test
+   旋律の効果説明文は horn_melody / horn_melody_mr テーブルの
+   Horn_UniqueParam_NNN_Explain 行（content[1]=日本語）にある。
+   _Name 行と同じ NNN の _Explain 行を結合すれば名称と効果をセットで取れる
 3. 百竜スキルは v_hyakuryu_skill（id, name_ja, name_en 結合済み）を使う。
-4. 上記で足りない場合のみ生テーブルを調べる。list_tables / describe_table で
+   ただし id 259〜293 は名称マスタに存在せず name が NULL になる
+   （結合ミスではなく MHRice 側に名称データがない）
+4. よくある検索パターン:
+   - スロット比較: slots は [スロ1, スロ2, スロ3, 百竜スロット] のレベル 4 要素。
+     装飾品スロットの比較は先頭 3 要素（slots[1]〜slots[3]）のみを見ること
+   - 会心率 affinity は負の値がありうる（マイナス会心）
+   - 百竜スキルで絞る: まず v_hyakuryu_skill で名称から id を引き、
+     list_contains(hyakuryu_skill_ids, <id>) で絞る。MR 武器にも固定百竜スキルがある
+   - 派生先・派生元: <武器種>__tree を v_* と weapon_id で結合する
+     （tree.weapon_id['<Type>'] = v_*.weapon_id）。
+     next_weapon_index_list / prev_weapon_index は tree テーブル自身の index 列を指す。
+     FROM 句で UNNEST と JOIN を組み合わせると DuckDB が内部エラーになることが
+     あるため、list_contains((SELECT ...), t.index) 形式で書くこと
+   - モンスター名から武器を探す: 武器名にモンスター名は含まれないため直接検索は
+     不可。素材名（items_name_msg / items_name_msg_mr の content[1]）を
+     モンスターの和名（例: マガイマガド → 怨虎竜）で LIKE 検索してアイテム id を得て、
+     <武器種>__product の base['item'] 配列（'{"Normal":<id>}' 形式の JSON 文字列）
+     と照合すると直接生産できる武器に限り逆引きできる
+     （派生強化のみの武器は生産素材を持たずヒットしない点に注意）
+5. 上記で足りない場合のみ生テーブルを調べる。list_tables / describe_table で
    構造を確認してから query で SQL を実行する
    （テーブルはネストした struct を含むため、構造確認してから書くこと）
 
@@ -57,8 +81,8 @@ INSTRUCTIONS = """\
 - 派生ツリーは <武器種>__tree、生産素材は <武器種>__product に入っている
 - サンブレイク（MR）追加分は *_mr サフィックスのテーブルに入っている
 - 属性値などのマイナス値は「未設定」を意味する場合がある
-- 「クリア後テスト用」「TU3テスト用」などのテスト用データも含まれる。
-  ユーザーへの回答では除外して提示すること
+- テーブルは 441 個あるため SHOW TABLES や list_tables は行数上限で打ち切られる。
+  テーブル名を探すときは query で information_schema.tables を LIKE 検索すること
 """
 
 ALLOWED_STATEMENT = re.compile(r"^\s*(select|with|explain|describe|show)\b", re.IGNORECASE)
@@ -223,7 +247,12 @@ def create_views() -> None:
             SELECT
                 n.name_ja,
                 n.name_en,
-                coalesce(n.name_ja LIKE '%テスト%', false) AS is_test,
+                -- 除外すべきダミーをまとめて is_test にフラグ付けする:
+                --   「○○テスト用」: テスト用武器
+                --   #Rejected#    : 名称マスタがプレースホルダの未使用武器枠
+                --   atk = 0       : 重ね着専用のダミー（ロストコード／ぬいぐるみ系）
+                coalesce(n.name_ja LIKE '%テスト%' OR n.name_ja LIKE '%#Rejected#%'
+                         OR {stats}['atk'] <= 0, false) AS is_test,
                 n.is_mr,
                 {ids}['id']['{id_key}'] AS weapon_id,
                 {ids}['sort_id'] AS sort_id,
@@ -268,7 +297,25 @@ def check_weapon_alignment() -> None:
 
 @mcp.tool
 def query(sql: str) -> str:
-    """DuckDB SQL（SELECT 系のみ）を実行し、結果を JSON 文字列で返す。"""
+    """DuckDB SQL（SELECT 系のみ）を実行し、結果を JSON 文字列で返す。
+
+    使い方の要点:
+    - 武器を調べるときは生テーブルではなく v_<武器種> ビューを使う
+      （例: v_horn。武器名・atk・rare・属性・スロット等が平坦化済み）
+      武器種: great_sword, long_sword, short_sword, dual_blades, hammer, horn,
+      lance, gun_lance, slash_axe, charge_axe, insect_glaive, bow,
+      light_bowgun, heavy_bowgun
+    - 回答対象は NOT is_test で絞ること（テスト用・未使用枠・重ね着ダミーを除外）
+    - 無印（下位〜上位）のみ: NOT is_mr。MR（サンブレイク）のみ: is_mr
+    - 狩猟笛の旋律で絞る例:
+      SELECT name_ja, melodies_ja FROM v_horn
+      WHERE list_contains(melodies_ja, 'スタミナ消費軽減') AND NOT is_test
+    - 部分一致検索は日本語名に LIKE '%キーワード%' を使う
+    - 結果は最大 200 行・50000 文字で打ち切られる。必要な列だけ SELECT し、
+      件数確認には COUNT(*) を使うこと
+    - 生テーブルの struct アクセスはドットではなくブラケット記法（col['x']['y']）。
+      名称系テーブルの content 列は 32 言語配列で content[1]=日本語（1-indexed）
+    """
     if not ALLOWED_STATEMENT.match(sql):
         return "error: SELECT / WITH / EXPLAIN / DESCRIBE / SHOW のみ実行可能です"
     try:
@@ -291,7 +338,12 @@ def query(sql: str) -> str:
 
 @mcp.tool
 def list_tables() -> str:
-    """利用可能なテーブル名の一覧を返す。"""
+    """利用可能なテーブル名の一覧を返す。
+
+    441 テーブルあるため先頭 200 件で打ち切られる点に注意。
+    名前のパターンがわかっている場合は query で
+    SELECT table_name FROM information_schema.tables WHERE table_name LIKE '%xxx%'
+    を使う方が確実。"""
     rows = con.execute(
         "SELECT table_name FROM information_schema.tables ORDER BY table_name"
     ).fetchall()
@@ -300,7 +352,10 @@ def list_tables() -> str:
 
 @mcp.tool
 def describe_table(table: str) -> str:
-    """指定テーブルのカラム名と型を返す。"""
+    """指定テーブルのカラム名と型を返す。
+
+    生テーブル（<武器種>__base_data など）を直接使う場合は、ネストした
+    struct の深さが武器種により異なるため、必ず先にこのツールで構造を確認すること。"""
     if not re.fullmatch(r"[A-Za-z0-9_]+", table):
         return "error: テーブル名が不正です"
     try:
